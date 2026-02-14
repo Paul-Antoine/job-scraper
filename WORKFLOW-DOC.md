@@ -2,13 +2,13 @@
 
 ## Vue d'ensemble
 
-Workflow n8n automatise qui collecte, analyse et envoie chaque matin un resume des offres d'alternance "Product Builder No-Code & IA Generative" autour de Paris.
+Workflow n8n automatise qui recherche, analyse et envoie chaque matin un resume des offres d'alternance "Product Builder No-Code & IA Generative" autour de Paris, via un **Agent IA autonome**.
 
-**4 nodes | Execution quotidienne 10h00 Europe/Paris | Workflow actif**
+**5 nodes (1 trigger + 1 agent + 2 sous-nodes + 1 Gmail) | Execution quotidienne 10h00 Europe/Paris | Workflow actif**
 
-- **Workflow ID** : *(votre workflow ID)*
-- **Instance** : *(votre URL n8n)*
-- **Version** : 1.1
+- **Workflow ID** : `6G7Ceg2OUZZ7ng5n`
+- **Workflow Name** : `Veille Alternance - Agent IA`
+- **Version** : 2.0
 
 ---
 
@@ -25,34 +25,41 @@ flowchart TD
         T1["n8n-nodes-base.scheduleTrigger\ntypeVersion: 1.3"]
     end
 
-    TRIGGER --> SERP
+    TRIGGER --> AGENT
 
-    subgraph SERP ["Node 2 - HTTP Request : SerpAPI Google Jobs"]
-        direction LR
-        S1["GET google_jobs\n- q: alternance no-code OR IA generative...\n- location: Paris, Ile-de-France\n- chips: date_posted:week\n- hl/gl: fr\n- continueOnFail: true"]
+    subgraph AGENT ["Node 2 - Agent Veille"]
+        direction TB
+        A1["@n8n/n8n-nodes-langchain.agent\ntypeVersion: 3.1\nmaxIterations: 15"]
     end
 
-    SERP --> AI
+    LLM --> AGENT
+    SERP --> AGENT
 
-    subgraph AI ["Node 3 - OpenAI : Resume & Scoring"]
+    subgraph LLM ["OpenAI Chat Model"]
         direction LR
-        A1["GPT-4o-mini\n1. Score pertinence 1-10\n2. Resume 2-3 lignes/offre\n3. Top 3 recommandations\n4. Output: HTML formate"]
+        G1["lmChatOpenAi\ngpt-4o-mini\ntemp: 0.3"]
     end
 
-    AI --> MAIL
-
-    subgraph MAIL ["Node 4 - Gmail : Envoi Email"]
+    subgraph SERP ["SerpAPI Tool"]
         direction LR
-        M1["Send Message (HTML)\n- To: (configure dans n8n)\n- Subject: Veille Alternance - dd/MM/yyyy\n- Body: resume IA HTML"]
+        S1["toolSerpApi\nGoogle Search\ngl/hl: fr"]
     end
 
-    MAIL --> DONE(["Email recu dans\nla boite Gmail"])
+    AGENT --> GMAIL
+
+    subgraph GMAIL ["Node 5 - Envoi Email"]
+        direction LR
+        M1["gmail v2.2\nOAuth2\nHTML email"]
+    end
+
+    GMAIL --> DONE(["Email recu dans\nla boite Gmail"])
 
     style START fill:#E8F5E9,stroke:#4CAF50,color:#1B5E20
     style TRIGGER fill:#E8F5E9,stroke:#4CAF50
-    style SERP fill:#E3F2FD,stroke:#2196F3
-    style AI fill:#F3E5F5,stroke:#9C27B0
-    style MAIL fill:#FFEBEE,stroke:#F44336
+    style AGENT fill:#F3E5F5,stroke:#9C27B0
+    style LLM fill:#E3F2FD,stroke:#2196F3
+    style SERP fill:#FFF3E0,stroke:#FF9800
+    style GMAIL fill:#FFEBEE,stroke:#F44336
     style DONE fill:#E8F5E9,stroke:#4CAF50,color:#1B5E20
 ```
 
@@ -63,21 +70,26 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     participant S as Schedule Trigger
-    participant SP as SerpAPI
-    participant AI as OpenAI
+    participant AG as Agent Veille
+    participant LLM as OpenAI gpt-4o-mini
+    participant SP as SerpAPI (Google Search)
     participant G as Gmail
 
     Note over S: 10h00 Europe/Paris
-    S->>SP: Declenche
-    SP->>SP: GET /search.json (Google Jobs)
-    SP-->>AI: jobs_results[] (JSON)
+    S->>AG: Declenche avec prompt
 
-    AI->>AI: Analyse pertinence
-    AI->>AI: Score 1-10 par offre
-    AI->>AI: Top 3 + resume HTML
-    AI-->>G: message.content (HTML)
+    loop Recherches iteratives (max 15)
+        AG->>LLM: Decide prochaine action
+        LLM-->>AG: Appeler SerpAPI avec mots-cles
+        AG->>SP: Recherche Google (ex: "alternance no-code Paris")
+        SP-->>AG: Resultats de recherche
+        AG->>LLM: Analyser resultats, scorer pertinence
+    end
 
-    G->>G: Envoi email
+    AG->>LLM: Composer HTML final
+    LLM-->>AG: HTML genere ($json.output)
+    AG->>G: Passe le HTML en sortie
+    G->>G: Envoie email avec $json.output
     Note over G: Email recu avec resume
 ```
 
@@ -95,119 +107,97 @@ sequenceDiagram
 | Declenchement | Chaque jour a 10h00 |
 | Timezone | Europe/Paris (settings workflow) |
 
-### Node 2 : SerpAPI Google Jobs
+### Node 2 : Agent Veille
 
 | Propriete | Valeur |
 |-----------|--------|
-| ID | `node-3-serpapi` |
-| Type | `n8n-nodes-base.httpRequest` |
-| typeVersion | `4.2` |
-| Methode | GET |
-| onError | `continueRegularOutput` |
+| ID | `node-agent` |
+| Type | `@n8n/n8n-nodes-langchain.agent` |
+| typeVersion | `3.1` |
+| promptType | `define` |
+| maxIterations | `15` |
 
-**Requete SerpAPI** :
+**System Message** :
 ```
-engine=google_jobs
-q=alternance "no-code" OR "no code" OR "IA generative" OR "intelligence artificielle" Paris
-location=Paris, Ile-de-France, France
-chips=date_posted:week
-hl=fr
-gl=fr
+Tu es un assistant specialise en veille d'offres d'alternance. Tu recherches des offres pour un candidat en Product Building no-code et IA generative cherchant une alternance a Paris / nord-ouest parisien. Tu utilises l'outil de recherche Google pour trouver des offres recentes. Ta reponse finale doit etre du HTML propre et professionnel avec un scoring de pertinence. Ne tente PAS d'envoyer d'email, contente-toi de produire le HTML.
 ```
 
-> La requete utilise des operateurs OR pour elargir les resultats. `alternance` et `Paris` sont toujours presents, combines avec des variantes no-code / IA.
+**User Prompt** :
+```
+Aujourd'hui nous sommes le {{ $now.toFormat('dd/MM/yyyy') }}.
+Recherche des offres d'alternance recentes (moins de 7 jours) pour un profil "Product Builder No-Code & IA Generative" a Paris et nord-ouest parisien (92, 95).
+Fais plusieurs recherches avec des mots-cles varies : "alternance no-code Paris", "alternance IA generative Paris", "alternance product builder Paris", "apprentissage intelligence artificielle Paris".
+Pour chaque offre trouvee, evalue sa pertinence (score 1-10) par rapport au profil.
+Compose ta reponse finale en HTML avec : TOP 3 recommandations, puis tableau de toutes les offres (Score, Titre, Entreprise, Lieu, Resume, Lien).
+Si aucune offre pertinente n'est trouvee, genere quand meme un HTML le mentionnant.
+```
 
-### Node 3 : Resume IA (OpenAI)
+### Node 3 : OpenAI Chat Model (LLM)
 
 | Propriete | Valeur |
 |-----------|--------|
-| ID | `node-5-openai` |
-| Type | `n8n-nodes-base.openAi` |
-| typeVersion | `1.1` |
-| Resource | Chat |
-| Operation | Complete |
+| ID | `node-openai` |
+| Type | `@n8n/n8n-nodes-langchain.lmChatOpenAi` |
+| typeVersion | `1.2` |
 | Modele | `gpt-4o-mini` |
-| Max Tokens | `2000` |
-| Simplify Output | `true` |
-| Credential | `OpenAi account` |
+| Max Tokens | `4096` |
+| Temperature | `0.3` |
+| Credential | OpenAI API |
 
-**System Prompt** : Analyse des offres, scoring 1-10, resume par offre, TOP 3, sortie HTML formatee.
-
-**User Prompt** : Injecte `$json.jobs_results` (sortie SerpAPI) au format JSON.
-
-**Sortie** : `$json.message.content` contient le HTML genere.
-
-### Node 4 : Envoi Email (Gmail)
+### Node 4 : SerpAPI Tool
 
 | Propriete | Valeur |
 |-----------|--------|
-| ID | `node-6-gmail` |
+| ID | `node-serpapi-tool` |
+| Type | `@n8n/n8n-nodes-langchain.toolSerpApi` |
+| typeVersion | `1` |
+| gl | `fr` |
+| hl | `fr` |
+| google_domain | `google.fr` |
+| Credential | SerpAPI |
+
+### Node 5 : Envoi Email (Gmail)
+
+| Propriete | Valeur |
+|-----------|--------|
+| ID | `node-gmail` |
 | Type | `n8n-nodes-base.gmail` |
 | typeVersion | `2.2` |
-| Resource | Message |
-| Operation | Send |
+| To | `palevasseur75@gmail.com` |
+| Subject | `Veille Alternance - {{ $now.toFormat('dd/MM/yyyy') }}` |
+| Body | `{{ $json.output }}` |
+| appendAttribution | `false` |
 | Credential | `Mam OAuth` (Gmail OAuth2) |
-
-**Configuration** :
-- **To** : *(configure dans n8n)*
-- **Subject** : `Veille Alternance - {{ $now.toFormat('dd/MM/yyyy') }}`
-- **Body** : `{{ $json.message.content }}`
-- **appendAttribution** : `false`
 
 ---
 
-## Structure des donnees
+## Connections
 
-### Sortie SerpAPI (input pour OpenAI)
-
-```json
-{
-  "jobs_results": [
-    {
-      "title": "Alternant Product Builder IA",
-      "company_name": "TechCorp",
-      "location": "Levallois-Perret",
-      "description": "Rejoignez notre equipe produit...",
-      "detected_extensions": {
-        "posted_at": "Il y a 3 jours",
-        "salary": "Non precise"
-      },
-      "apply_options": [
-        {
-          "title": "Postuler sur Welcome to the Jungle",
-          "link": "https://www.welcometothejungle.com/..."
-        }
-      ],
-      "via": "Welcome to the Jungle"
-    }
-  ],
-  "jobs_results_state": "Results for exact spelling",
-  "search_parameters": {
-    "q": "alternance \"no-code\" OR \"no code\" OR \"IA generative\" OR \"intelligence artificielle\" Paris",
-    "location_requested": "Paris, Ile-de-France, France"
-  }
-}
-```
-
-### Sortie OpenAI (input pour Gmail)
-
-```json
-{
-  "message": {
-    "role": "assistant",
-    "content": "<h2>Veille Emploi - 02/02/2026</h2><p><strong>8 offres trouvees</strong></p>..."
-  }
-}
-```
+| Source | Type | Destination |
+|--------|------|-------------|
+| Declencheur 10h00 | `main` | Agent Veille |
+| OpenAI Chat Model | `ai_languageModel` | Agent Veille |
+| SerpAPI Tool | `ai_tool` | Agent Veille |
+| Agent Veille | `main` | Envoi Email |
 
 ---
 
 ## Credentials
 
-| # | Credential | Type dans n8n | ID | Nom |
-|---|-----------|---------------|-----|-----|
-| 1 | SerpAPI | Aucun (API Key en URL) | — | — |
-| 2 | OpenAI | OpenAI API | — | *(votre credential)* |
-| 3 | Gmail | Gmail OAuth2 | — | *(votre credential)* |
+| # | Credential | Type dans n8n | Nom |
+|---|-----------|---------------|-----|
+| 1 | OpenAI | OpenAI API | `OpenAi account` |
+| 2 | SerpAPI | SerpApi API | `SerpAPI account` |
+| 3 | Gmail | Gmail OAuth2 | `Mam OAuth` |
 
 ---
+
+## Differences avec la v1.x (ancien workflow)
+
+| Aspect | v1.x (ancien) | v2.0 (actuel) |
+|--------|---------------|---------------|
+| Architecture | 4 nodes lineaires | Agent IA + sous-nodes + Gmail |
+| Recherche | 1 requete SerpAPI statique (Google Jobs) | Agent fait plusieurs recherches Google adaptatives |
+| LLM | OpenAI gpt-4o-mini (node direct) | OpenAI gpt-4o-mini (via Agent langchain) |
+| Email | Node Gmail recoit sortie OpenAI | Node Gmail recoit sortie Agent (`$json.output`) |
+| Flexibilite | Requete figee | Agent autonome, mots-cles varies |
