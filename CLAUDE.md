@@ -28,7 +28,17 @@ Schedule Trigger (10h00) → AI Agent → Gmail (send)
 
 - `PRD.md` — Original specification (v1 architecture, still useful for context on the job profile and requirements)
 - `WORKFLOW-DOC.md` — Current implementation reference: Mermaid diagrams, node configs, credentials matrix
+- `workflow.json` — Sanitized n8n workflow export (committed to repo)
 - `.mcp.json` — MCP server configuration (n8n, Airtable, Context7)
+
+## Sensitive Data Policy
+
+**This is a public repository.** When updating `workflow.json`, always verify that it does NOT contain:
+- Email addresses (use `YOUR_EMAIL@example.com` as placeholder)
+- Personal names or identifying information in prompts
+- API keys, OAuth tokens, or any credential values
+
+Credential IDs (internal n8n references like `"id": "FarKrMH7V2phy9UE"`) are safe to keep — they are not exploitable without access to the n8n instance.
 
 ## Working with the n8n Instance
 

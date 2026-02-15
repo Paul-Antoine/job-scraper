@@ -1,0 +1,155 @@
+{
+  "name": "Veille Alternance - Agent IA",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Aujourd'hui : {{ $now.toFormat('dd/MM/yyyy') }}.\n\n  ETAPE 1 - RECHERCHES GOOGLE\n  Effectue au minimum 6 recherches Google avec ces requetes exactes, une par une :\n  1. \"alternance no-code Paris 2026\"\n  2. \"alternance IA generative Paris\"\n  3. \"alternance product builder Paris\"\n  4. \"alternance automation Make n8n Paris\"\n  5. \"alternance chef de projet IA Paris\"\n  6. \"CDI no-code maker automatisation Paris\"\n  7. \"stage alternance Airtable Zapier Bubble Paris\"\n\n  Si les resultats sont peu nombreux, ajoute des recherches supplementaires :\n  8. \"recrutement automation specialist ile de france\"\n  9. \"offre emploi low-code alternance 92 93 94\"\n  10. \"alternance transformation digitale no-code Paris\"\n\n  ETAPE 2 - ANALYSE\n  Pour chaque offre trouvee :\n  - Verifie qu'elle n'est PAS proposee par un organisme de formation (ISCOD, Alegria, etc.)\n  - Evalue le % d'adequation avec le profil du candidat\n  - Identifie le contact RH ou decideur si disponible\n\n  ETAPE 3 - REPONSE HTML\n  Genere le HTML final avec cette structure exacte :\n\n  <h2 style=\"color:#2c3e50;\">Veille Alternance & Emploi - {{ $now.toFormat('dd/MM/yyyy') }}</h2>\n  <p><strong>X offres trouvees</strong> | Y pertinentes (adequation > 50%)</p>\n\n  <h3 style=\"color:#27ae60;\">TOP 3 Recommandations</h3>\n  Pour chaque offre du TOP 3, un bloc <div> avec :\n  - Titre du poste en <strong>, type de contrat, entreprise, lieu\n  - % d'adequation et justification en 1 ligne\n  - Lien direct pour postuler\n  - Si publiee il y a 1-2 jours : mention \"Postuler rapidement\"\n\n  <h3 style=\"color:#2c3e50;\">Tableau complet des offres</h3>\n  <table style=\"border-collapse:collapse; width:100%; font-family:Arial, sans-serif; font-size:14px;\">\n  avec colonnes :\n  - Titre du poste (+ type contrat)\n  - Entreprise\n  - Date de publication\n  - Missions principales (2-3 lignes max)\n  - Outils No-code & IA demandes\n  - Localisation\n  - Contact RH / Email (si trouve)\n  - % Adequation\n  - Lien (balise <a> cliquable)\n\n  Style des <th> : background-color:#4CAF50; color:white; padding:10px; text-align:left; border:1px solid #ddd;\n  Style des <td> : padding:8px; border:1px solid #ddd; vertical-align:top;\n  Lignes alternees : une ligne sur deux avec background-color:#f9f9f9;\n\n  Si AUCUNE offre trouvee, genere quand meme le HTML avec un message indiquant qu'aucune offre pertinente n'a ete trouvee aujourd'hui.",
+        "options": {
+          "systemMessage": " # Role\n  Tu es un Expert RH et Sourcing Tech specialise dans le recrutement de profils hybrides (Code + No-code + IA) sur le marche parisien.\n\n  ## Profil du Candidat\n - Forces : double competence developpeur full stack JS + expertise no-code/low-code + IA generative\n\n  ## Perimetre de recherche\n  - Zone : Paris et environs (92, 93, 94, 95) - rayon 20 km\n  - Types de contrat : Alternance (prioritaire), CDI, CDD, Stage\n  - Elargissement semantique : inclure les offres titrees \"Assistant IA\", \"Marketing Digital\", \"Growth Ops\", \"Operations Manager\", \"Charge de\n  mission\" des lors que la stack mentionne des outils no-code (Make, n8n, Airtable, Zapier, Bubble, Lovable, Softr, Webflow)\n\n  ## Mots-cles cibles\n  \"Chef de projet IA\", \"Product builder no-code\", \"No-code Maker\", \"AI Automation Engineer\", \"Automation Manager\", \"Automation Specialist\",\n  \"Consultant Transformation Digitale\", \"No-code\", \"Low-code\", \"automatisation workflow\", \"Airtable\", \"Make\", \"n8n\", \"Bubble\", \"Lovable\", \"Zapier\",\n  \"Webflow\", \"Softr\", \"Cursor\", \"Claude Code\"\n\n  ## Filtres d'exclusion\n  - EXCLURE les offres d'organismes de formation (ISCOD, Alegria, etc.) qui conditionnent l'alternance a une inscription chez eux\n  - Le candidat a deja son organisme de formation (Oreegami)\n\n  ## Scoring d'adequation\n  Valoriser fortement (80-100%) :\n  - Outils no-code explicitement demandes (Make, n8n, Airtable, Zapier, Bubble)\n  - Competences developpeur JS/TS, API REST, bases de donnees\n  - Utilisation de Claude Code / vibe coding\n  - ESN orientees automation, startups, scale-ups, PME cherchant a automatiser\n  - Entreprises a impact social/environnemental (bonus)\n  - Entreprises ayant fait une levee de fonds importante\n\n  ## Consignes de sortie\n  - Ta reponse finale doit etre UNIQUEMENT du HTML valide avec styles inline\n  - Ne tente PAS d'envoyer d'email, produis uniquement le HTML\n  - Pas de markdown, pas de blocs de code, juste le HTML directement",
+          "maxIterations": 15
+        }
+      },
+      "id": "node-agent",
+      "name": "Agent Veille",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [400, 0]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {
+          "maxTokens": 4096,
+          "temperature": 0.3
+        }
+      },
+      "id": "node-openai",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [304, 304],
+      "credentials": {
+        "openAiApi": {
+          "id": "FarKrMH7V2phy9UE",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "gl": "fr",
+          "google_domain": "google.fr",
+          "hl": "fr"
+        }
+      },
+      "id": "node-serpapi-tool",
+      "name": "SerpAPI Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolSerpApi",
+      "typeVersion": 1,
+      "position": [544, 304],
+      "credentials": {
+        "serpApi": {
+          "id": "vhIh8utk0lTBYI0u",
+          "name": "SerpAPI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_EMAIL@example.com",
+        "subject": "=Veille Alternance - {{ $now.toFormat('dd/MM/yyyy') }}",
+        "message": "={{ $json.output }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "node-gmail",
+      "name": "Envoi Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [800, 0],
+      "webhookId": "ef07d2c0-1107-4531-9bff-2e1a8010d2c5",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "CpvPpSGqLjvfaVBt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "node-1-trigger",
+      "name": "Declencheur 08h00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [0, 0]
+    }
+  ],
+  "connections": {
+    "Agent Veille": {
+      "main": [
+        [
+          {
+            "node": "Envoi Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent Veille",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpAPI Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent Veille",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Declencheur 08h00": {
+      "main": [
+        [
+          {
+            "node": "Agent Veille",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}
